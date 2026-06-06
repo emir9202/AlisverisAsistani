@@ -1,10 +1,57 @@
+# ==========================================
+# GİZLİ BİLGİLER VE ŞİFRELER
+# ==========================================
 .env
-*.db
-__pycache__/
-*.pyc
-*.pyo
-asistan_profil/
-chrome_profile/
-session_*
-.DS_Store
+.env.*
+*.secret
+
+# ==========================================
+# SANAL ORTAM (VIRTUAL ENVIRONMENT)
+# ==========================================
+# 220 MB'lık klasörlerin GitHub'a gitmesini engeller
 venv/
+.venv/
+env/
+ENV/
+
+# ==========================================
+# TELEGRAM OTURUM DOSYALARI (TELETHON)
+# ==========================================
+# Telegram'a giriş yaptığında oluşan ve oturumu açık tutan dosyalar
+*.session
+*.session-journal
+
+# ==========================================
+# PYTHON ÖNBELLEK DOSYALARI
+# ==========================================
+# Python'un kodu çalıştırırken oluşturduğu gereksiz derleme dosyaları
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ==========================================
+# EDİTÖR VE İŞLETİM SİSTEMİ DOSYALARI
+# ==========================================
+# VS Code, Mac veya Windows'un kendi kendine oluşturduğu dosyalar
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# TARAYICI PROFİLLERİ (SELENIUM/CHROME)
+# ==========================================
+# Chrome tarafından oluşturulan kullanıcı profil verileri
+chrome_profile/
+asistan_profil/
+ChromeProfile/
+
+# ==========================================
+# VERİTABANI DOSYALARI
+# ==========================================
+# SQLite veritabanı (kişisel veriler içerir)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3

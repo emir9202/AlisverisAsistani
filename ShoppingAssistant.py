@@ -221,15 +221,6 @@ class AgentGUI(ctk.CTk):
                                          command=self.launch_browser)
         self.browser_btn.pack(fill="x", pady=2)
 
-        self.disconnect_btn = ctk.CTkButton(menu_frame, text="  Bağlantıyı Kes",
-                                            width=240, height=42, anchor="w",
-                                            fg_color="transparent", hover_color=Colors.BG_SIDEBAR,
-                                            text_color=Colors.TEXT_MUTED,
-                                            font=("Segoe UI", 13),
-                                            state="disabled",
-                                            command=self.disconnect_browser)
-        self.disconnect_btn.pack(fill="x", pady=2)
-
         # Bağlantı Durumu
         status_frame = ctk.CTkFrame(menu_frame, fg_color=Colors.BG_SIDEBAR, corner_radius=8, height=40)
         status_frame.pack(fill="x", pady=(12, 0))
@@ -696,13 +687,9 @@ class AgentGUI(ctk.CTk):
         if connected:
             self.status_dot.configure(text_color=Colors.SUCCESS)
             self.status_text.configure(text="Bağlı", text_color=Colors.SUCCESS)
-            self.browser_btn.configure(state="disabled", text_color=Colors.TEXT_MUTED)
-            self.disconnect_btn.configure(state="normal", text_color=Colors.ERROR)
         else:
             self.status_dot.configure(text_color=Colors.ERROR)
             self.status_text.configure(text="Bağlantı Yok", text_color=Colors.TEXT_SECONDARY)
-            self.browser_btn.configure(state="normal", text_color=Colors.TEXT_PRIMARY)
-            self.disconnect_btn.configure(state="disabled", text_color=Colors.TEXT_MUTED)
 
     def toggle_chat(self):
         if not hasattr(self, "chat_window") or self.chat_window is None or not self.chat_window.winfo_exists():
@@ -741,9 +728,9 @@ class AgentGUI(ctk.CTk):
             quick_inner.pack(fill="x", padx=16, pady=10)
 
             buttons = [
-                ("Analiz Et",     lambda: self.show_product_selector("analiz")),
-                ("Fiyat Geçmişi", lambda: self.show_product_selector("fiyat")),
-                ("Sepete Ekle",   lambda: self.show_product_selector("sepet")),
+                ("Analiz Et", lambda: self.quick_action("Bu ürünü analiz et")),
+                ("Fiyat Geçmişi", lambda: self.quick_action("Fiyat geçmişini göster")),
+                ("Sepete Ekle", lambda: self.quick_action("Bu ürünü sepete ekle"))
             ]
 
             for text, cmd in buttons:
@@ -790,30 +777,21 @@ class AgentGUI(ctk.CTk):
 
         self.update_chat_history("Siz", msg)
         self.chat_input.delete(0, 'end')
+        self.update_chat_history("Asistan", "Düşünüyorum...")
 
         def process_ai():
             try:
+                if self.agent is None:
+                    from analiz_motoru2 import SmartShoppingAgent
+                    self.agent = SmartShoppingAgent()
+
                 lower_msg = msg.lower()
-
-                sepet_keywords  = ["sepete ekle", "sepete at", "satın al", "almak istiyorum",
-                                   "sipariş ver", "satın almak", "ekle", "buy"]
-                analiz_keywords = ["analiz", "değer mi", "pahalı mı", "ucuz mu",
-                                   "özellik", "mantıklı", "incele"]
-                fiyat_keywords  = ["fiyat geçmişi", "fiyat geçmis", "geçmiş fiyat",
-                                   "fiyatlar", "fiyat tarih"]
-
-                if any(w in lower_msg for w in sepet_keywords):
-                    self.after(0, lambda: self.show_product_selector("sepet"))
-                elif any(w in lower_msg for w in fiyat_keywords):
-                    self.after(0, lambda: self.show_product_selector("fiyat"))
-                elif any(w in lower_msg for w in analiz_keywords):
-                    self.after(0, lambda: self.show_product_selector("analiz"))
+                if any(word in lower_msg for word in ["analiz", "et", "mantıklı"]):
+                    res = self.agent.get_market_analysis()
                 else:
-                    if self.agent is None:
-                        from analiz_motoru2 import SmartShoppingAgent
-                        self.agent = SmartShoppingAgent()
                     res = self.agent._get_groq_response(msg)
-                    self.after(0, lambda: self.update_chat_history("Asistan", res))
+
+                self.after(0, lambda: self.update_chat_history("Asistan", res))
             except Exception as e:
                 self.after(0, lambda: self.update_chat_history("Sistem", f"Hata: {str(e)}"))
 
@@ -824,98 +802,6 @@ class AgentGUI(ctk.CTk):
             self.chat_input.delete(0, 'end')
             self.chat_input.insert(0, msg)
             self.send_chat_message()
-
-    def show_product_selector(self, action_type):
-        """Chat alanında takip listesindeki ürünleri buton olarak gösterir."""
-        if not hasattr(self, "chat_history_area") or not self.chat_history_area.winfo_exists():
-            return
-
-        questions = {
-            "sepet": "Hangi ürünü sepete eklememi istiyorsunuz?",
-            "analiz": "Hangi ürünü analiz etmemi istiyorsunuz?",
-            "fiyat": "Hangi ürünün fiyat geçmişini görmek istiyorsunuz?",
-        }
-        self.update_chat_history("Asistan", questions.get(action_type, "Hangi üründen bahsediyorsunuz?"))
-
-        products = self.db.get_active_products()
-        if not products:
-            self.update_chat_history("Asistan", "Takip listesinde henüz ürün bulunmuyor.")
-            return
-
-        container = ctk.CTkFrame(self.chat_history_area, fg_color="transparent")
-        container.pack(fill="x", pady=(0, 8), padx=16, anchor="w")
-
-        for product in products:
-            p = product
-            name_display = p["name"][:45] + ("…" if len(p["name"]) > 45 else "")
-            ctk.CTkButton(
-                container,
-                text=name_display,
-                height=34,
-                anchor="w",
-                fg_color=Colors.BG_SIDEBAR,
-                hover_color=Colors.BORDER,
-                text_color=Colors.TEXT_PRIMARY,
-                font=("Segoe UI", 11),
-                border_width=1,
-                border_color=Colors.BORDER,
-                corner_radius=8,
-                command=lambda prod=p: self.execute_action_on_product(prod, action_type),
-            ).pack(fill="x", pady=2)
-
-        self.chat_history_area._parent_canvas.yview_moveto(1.0)
-
-    def execute_action_on_product(self, product, action_type):
-        """Seçilen ürün üzerinde istenilen eylemi gerçekleştirir."""
-        self.update_chat_history("Siz", product["name"])
-
-        def _run():
-            try:
-                if action_type in ("sepet", "analiz"):
-                    if not self.browser_connected or not self.agent or not self.agent.driver:
-                        self.after(0, lambda: self.update_chat_history(
-                            "Asistan", "Bu işlem için önce tarayıcıyı başlatın."))
-                        return
-                    self.agent.driver.get(product["url"])
-                    time.sleep(2.5)
-
-                if action_type == "sepet":
-                    selectors = (
-                        ".add-to-basket, .add-to-cart-button, "
-                        "[class*='addToBasket'], [class*='add-to-basket'], "
-                        "button[class*='sepet'], button[class*='basket']"
-                    )
-                    try:
-                        btn = self.agent.driver.find_element(By.CSS_SELECTOR, selectors)
-                        self.agent.driver.execute_script("arguments[0].click();", btn)
-                        name = product["name"]
-                        self.after(0, lambda: self.update_chat_history(
-                            "Asistan", f"{name} sepete eklendi!"))
-                    except Exception:
-                        self.after(0, lambda: self.update_chat_history(
-                            "Asistan", "Sepet butonu bulunamadı. Ürün stokta olmayabilir."))
-
-                elif action_type == "analiz":
-                    res = self.agent.get_market_analysis()
-                    self.after(0, lambda: self.update_chat_history("Asistan", res))
-
-                elif action_type == "fiyat":
-                    history = self.db.get_price_history(product["url"], limit=5)
-                    if history:
-                        lines = [f"{product['name']} – Son Fiyatlar:"]
-                        for h in reversed(history):
-                            ts = h["timestamp"][:10]
-                            lines.append(f"  {ts}: ₺{h['price']}")
-                        self.after(0, lambda: self.update_chat_history("Asistan", "\n".join(lines)))
-                    else:
-                        self.after(0, lambda: self.update_chat_history(
-                            "Asistan", "Bu ürün için henüz fiyat geçmişi yok."))
-
-            except Exception as e:
-                err = str(e)
-                self.after(0, lambda: self.update_chat_history("Sistem", f"Hata: {err}"))
-
-        threading.Thread(target=_run, daemon=True).start()
 
     def update_chat_history(self, sender, text):
         if hasattr(self, "chat_history_area") and self.chat_history_area.winfo_exists():
@@ -962,22 +848,6 @@ class AgentGUI(ctk.CTk):
                 self.after(0, lambda: self.log(f"Hata: {e}"))
 
         threading.Thread(target=_start, daemon=True).start()
-
-    def disconnect_browser(self):
-        self.log("Tarayıcı bağlantısı kesiliyor...")
-
-        def _stop():
-            try:
-                if self.agent:
-                    self.agent.close()
-                    self.agent = None
-                self.after(0, lambda: self.update_connection_status(False))
-                self.after(0, lambda: self.log("Tarayıcı bağlantısı kesildi."))
-            except Exception as e:
-                self.after(0, lambda: self.log(f"Bağlantı kesme hatası: {e}"))
-                self.after(0, lambda: self.update_connection_status(False))
-
-        threading.Thread(target=_stop, daemon=True).start()
 
     def send_telegram(self, message):
         phone = self.db.get_setting("tg_phone", "")
