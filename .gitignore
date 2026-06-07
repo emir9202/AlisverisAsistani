@@ -7,3 +7,4 @@ asistan_profil/
 chrome_profile/
 session_*
 .DS_Store
+venv/
