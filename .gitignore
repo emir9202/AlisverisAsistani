@@ -1,0 +1,9 @@
+.env
+*.db
+__pycache__/
+*.pyc
+*.pyo
+asistan_profil/
+chrome_profile/
+session_*
+.DS_Store
